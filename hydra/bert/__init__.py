@@ -12,14 +12,15 @@ try:
     # yapf: disable
     from src.bert_layers import (BertEmbeddings, BertEncoder, BertForMaskedLM,
                                  BertForSequenceClassification,
-                                 BertGatedLinearUnitMLP, BertLayer,
-                                 BertLMPredictionHead, BertModel,
+                                 BertLayer, BertLMPredictionHead, BertModel,
                                  BertOnlyMLMHead, BertOnlyNSPHead, BertPooler,
-                                 BertPredictionHeadTransform, BertSelfOutput,
-                                 BertUnpadAttention, BertUnpadSelfAttention)
+                                 BertPredictionHeadTransform, 
+                                 #BertSelfOutput, BertGatedLinearUnitMLP,
+                                 #BertUnpadAttention, BertUnpadSelfAttention
+                                 )
     # yapf: enable
     from src.bert_padding import (IndexFirstAxis, IndexPutFirstAxis,
-                                  index_first_axis, index_put_first_axis,
+                                  #index_first_axis, index_put_first_axis,
                                   pad_input, unpad_input, unpad_input_only)
     if torch.cuda.is_available():
         from src.flash_attn_triton import \
