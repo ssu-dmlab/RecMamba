@@ -6,9 +6,9 @@ import sys
 from typing import Optional, cast
 
 # Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-# Add the hydra package root to path
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+# sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+# # Add the hydra package root to path
+# sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 
 import src.hf_bert as hf_bert_module
 import src.create_bert as bert_module
@@ -152,6 +152,17 @@ def build_model(cfg: DictConfig):
             model_config=cfg.get('model_config', None),
             tokenizer_name=cfg.get('tokenizer_name', None),
             gradient_checkpointing=cfg.get('gradient_checkpointing', None))
+    elif cfg.name == 'test':
+        return bert_module.create_bert_mlm(
+            pretrained_model_name=cfg.pretrained_model_name,
+            pretrained_checkpoint=cfg.get('pretrained_checkpoint', None),
+            model_config=cfg.get('model_config', None),
+            tokenizer_name=cfg.get('tokenizer_name', None),
+            gradient_checkpointing=cfg.get('gradient_checkpointing', None),
+            test=True, ## if test is True, then the model is not wrapped in HuggingFaceModel
+            ## and return tuple of (model, tokenizer, metrics)
+        )
+
     else:
         raise ValueError(f'Not sure how to build model with name={cfg.name}')
 

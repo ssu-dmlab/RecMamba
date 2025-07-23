@@ -28,7 +28,9 @@ def create_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
                     model_config: Optional[dict] = None,
                     tokenizer_name: Optional[str] = None,
                     gradient_checkpointing: Optional[bool] = False,
-                    pretrained_checkpoint: Optional[str] = None):
+                    pretrained_checkpoint: Optional[str] = None,
+                    test: bool = False,
+                    ):
     """BERT masked language model based on |:hugging_face:| Transformers.
 
     For more information, see
@@ -111,7 +113,9 @@ def create_bert_mlm(pretrained_model_name: str = 'bert-base-uncased',
         LanguageCrossEntropy(ignore_index=-100),
         MaskedAccuracy(ignore_index=-100)
     ]
-
+    if test:
+        return (model, tokenizer, metrics)
+    
     hf_model = HuggingFaceModel(model=model,
                                 tokenizer=tokenizer,
                                 use_logits=True,
