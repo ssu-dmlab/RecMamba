@@ -15,6 +15,8 @@ from transformers.models.longformer.modeling_longformer import (
     LongformerLMHead
 )
 
+from transformers.models.bert.modeling_bert import BaseModelOutputWithPooling
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +26,13 @@ class RecformerConfig(LongformerConfig):
     def __init__(self, 
                 attention_window: Union[List[int], int] = 64, 
                 sep_token_id: int = 2,
+                ##
                 token_type_size: int = 4, # <s>, key, value, <pad>
                 max_token_num: int = 2048,
                 max_item_embeddings: int = 32, # 1 for <s>, 50 for items
                 max_attr_num: int = 12,
                 max_attr_length: int = 8,
+                ##
                 pooler_type: str = 'cls',
                 temp: float = 0.05,
                 mlm_weight: float = 0.1,
@@ -381,16 +385,16 @@ class RecformerForPretraining(LongformerPreTrainedModel):
     def forward(
         self,
         input_ids_a: Optional[torch.Tensor] = None,
-        attention_mask_a: Optional[torch.Tensor] = None,
-        global_attention_mask_a: Optional[torch.Tensor] = None,
+        attention_mask_a: Optional[torch.Tensor] = None, 
+        global_attention_mask_a: Optional[torch.Tensor] = None, #Longformer
         token_type_ids_a: Optional[torch.Tensor] = None,
-        item_position_ids_a: Optional[torch.Tensor] = None,
+        item_position_ids_a: Optional[torch.Tensor] = None, ## for item position
         mlm_input_ids_a: Optional[torch.Tensor] = None,
         mlm_labels_a: Optional[torch.Tensor] = None,
-        input_ids_b: Optional[torch.Tensor] = None,
-        attention_mask_b: Optional[torch.Tensor] = None,
-        global_attention_mask_b: Optional[torch.Tensor] = None,
-        token_type_ids_b: Optional[torch.Tensor] = None,
+        input_ids_b: Optional[torch.Tensor] = None, ####
+        attention_mask_b: Optional[torch.Tensor] = None, ####
+        global_attention_mask_b: Optional[torch.Tensor] = None, ####
+        token_type_ids_b: Optional[torch.Tensor] = None, ####
         item_position_ids_b: Optional[torch.Tensor] = None,
         mlm_input_ids_b: Optional[torch.Tensor] = None,
         mlm_labels_b: Optional[torch.Tensor] = None,
@@ -440,12 +444,13 @@ class RecformerForPretraining(LongformerPreTrainedModel):
             mlm_outputs_a = self.longformer(
                 mlm_input_ids_a,
                 attention_mask=attention_mask_a,
-                global_attention_mask=global_attention_mask_a,
-                head_mask=head_mask,
                 token_type_ids=token_type_ids_a,
                 position_ids=position_ids,
-                item_position_ids=item_position_ids_a,
-                inputs_embeds=inputs_embeds,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,           
+
+                global_attention_mask=global_attention_mask_a,
+                item_position_ids=item_position_ids_a,                
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
                 return_dict=True,
