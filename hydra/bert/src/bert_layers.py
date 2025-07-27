@@ -561,7 +561,7 @@ class BertForMaskedLM(BertPreTrainedModel):
             raise ValueError(
                 'TensorFlow is not supported.')
 
-        state_dict = torch.load(pretrained_checkpoint)
+        state_dict = torch.load(pretrained_checkpoint, weights_only=False)['state']['model']
         # If the state_dict was saved after wrapping with `composer.HuggingFaceModel`, it takes on the `model` prefix
         consume_prefix_in_state_dict_if_present(state_dict, prefix='model.')
         missing_keys, unexpected_keys = model.load_state_dict(state_dict,
@@ -626,12 +626,15 @@ class BertForMaskedLM(BertPreTrainedModel):
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+
+            encoder_hidden_states=encoder_hidden_states, #longformer에 없음 (for cross-attention)
+            encoder_attention_mask=encoder_attention_mask,  #longformer에 없음
             masked_tokens_mask=masked_tokens_mask,
+
+            output_attentions=output_attentions, 
+            output_hidden_states=output_hidden_states, 
+            return_dict=return_dict,
+            
         )
 
         sequence_output = outputs[0]
