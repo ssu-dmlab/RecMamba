@@ -1,5 +1,6 @@
 import torch
 from transformers import LongformerTokenizer, BertTokenizer
+from recformer.models import RecformerConfig, RecmambaConfig
 
 class RecformerTokenizer(LongformerTokenizer):
     @classmethod
@@ -159,7 +160,7 @@ class RecformerTokenizer(LongformerTokenizer):
 
         return self.padding(item_batch, pad_to_max)
         
-class RecMambaTokenizer(BertTokenizer):
+class RecmambaTokenizer(BertTokenizer):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, config=None):
         cls.config = config
@@ -227,7 +228,7 @@ class RecMambaTokenizer(BertTokenizer):
         items = items[::-1]  # reverse items order
         items = items[:self.config.max_item_embeddings - 1] # truncate the number of items, -1 for <s>
 
-        input_ids = [self.bos_token_id]
+        input_ids = [self.cls_token_id]
         item_position_ids = [0]
         token_type_ids = [0]
 
@@ -253,8 +254,6 @@ class RecMambaTokenizer(BertTokenizer):
         token_type_ids = token_type_ids[:self.config.max_token_num]
 
         attention_mask = [1] * len(input_ids)
-        #global_attention_mask = [0] * len(input_ids)
-        #global_attention_mask[0] = 1
 
         return {
             "input_ids": input_ids,
@@ -275,7 +274,6 @@ class RecMambaTokenizer(BertTokenizer):
         batch_item_position_ids = []
         batch_token_type_ids = []
         batch_attention_mask = []
-        batch_global_attention_mask = []
 
 
         for items in item_batch:
@@ -284,7 +282,6 @@ class RecMambaTokenizer(BertTokenizer):
             item_position_ids = items["item_position_ids"]
             token_type_ids = items["token_type_ids"]
             attention_mask = items["attention_mask"]
-            #global_attention_mask = items["global_attention_mask"]
 
             length_to_pad = max_length - len(input_ids)
 
@@ -292,13 +289,11 @@ class RecMambaTokenizer(BertTokenizer):
             item_position_ids += [self.config.max_item_embeddings - 1] * length_to_pad
             token_type_ids += [3] * length_to_pad
             attention_mask += [0] * length_to_pad
-            #global_attention_mask += [0] * length_to_pad
 
             batch_input_ids.append(input_ids)
             batch_item_position_ids.append(item_position_ids)
             batch_token_type_ids.append(token_type_ids)
             batch_attention_mask.append(attention_mask)
-            #batch_global_attention_mask.append(global_attention_mask)
 
         return {
             "input_ids": batch_input_ids,
@@ -317,11 +312,12 @@ class RecMambaTokenizer(BertTokenizer):
 
 if __name__ == "__main__":
 
-    from models import RecformerConfig
+    config = RecmambaConfig.from_pretrained("bert-base-uncased")
+    tokenizer = RecmambaTokenizer.from_pretrained("bert-base-uncased", config=config)
 
 
-    config = RecformerConfig.from_pretrained("allenai/longformer-base-4096")
-    tokenizer = RecformerTokenizer.from_pretrained("allenai/longformer-base-4096", config=config)
+    # config = RecformerConfig.from_pretrained("allenai/longformer-base-4096")
+    # tokenizer = RecformerTokenizer.from_pretrained("allenai/longformer-base-4096", config=config)
 
     items1 = [{'pt': 'PUZZLES',
             'material': 'Cardboard++Cartón',
