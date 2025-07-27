@@ -81,7 +81,7 @@ def main():
     dir_preprocess = dir_corpus / 'preprocess'
     dir_preprocess.mkdir(exist_ok=True)
 
-    path_tokenized_items = dir_preprocess / f'tokenized_items_{path_corpus.name}'
+    path_tokenized_items = dir_preprocess / f'mamba_tokenized_items_{path_corpus.name}'
 
     if path_tokenized_items.exists():
         print(f'[Preprocessor] Use cache: {path_tokenized_items}')

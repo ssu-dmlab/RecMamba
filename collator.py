@@ -115,7 +115,7 @@ class PretrainDataCollatorWithPadding:
 
         for (i, token) in enumerate(input_tokens):
 
-            if token == self.tokenizer.bos_token or token == self.tokenizer.eos_token:
+            if token == self.tokenizer.cls_token or token == self.tokenizer.sep_token:
                 continue
 
             if self._is_subword(token) and len(cand_indexes) > 0:
