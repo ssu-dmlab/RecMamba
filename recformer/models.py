@@ -14,6 +14,7 @@ from transformers.models.longformer.modeling_longformer import (
     LongformerBaseModelOutputWithPooling,
     LongformerLMHead
 )
+from transformers.models.bert.configuration_bert import BertConfig
 
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,8 @@ class RecformerConfig(LongformerConfig):
                 attention_window: Union[List[int], int] = 64, 
                 sep_token_id: int = 2,
                 token_type_size: int = 4, # <s>, key, value, <pad>
-                max_token_num: int = 2048,
-                max_item_embeddings: int = 32, # 1 for <s>, 50 for items
+                max_token_num: int = 2048,  # 1024 is used in practice
+                max_item_embeddings: int = 32, # 1 for <s>, 50 for items (51 is used in practice)
                 max_attr_num: int = 12,
                 max_attr_length: int = 8,
                 pooler_type: str = 'cls',
@@ -51,6 +52,40 @@ class RecformerConfig(LongformerConfig):
 
         self.item_num = item_num
         self.finetune_negative_sample_size = finetune_negative_sample_size
+
+class RecMambaConfig(BertConfig):
+
+
+    def __init__(self, 
+                pad_token_id: int = 0,  # <PAD> token id: 0
+                token_type_size: int = 4, # <CLS>, key, value, <PAD>
+                max_token_num: int = 2048,
+                max_item_embeddings: int = 32, # 1 for <CLS>, 50 for items
+                max_attr_num: int = 12,
+                max_attr_length: int = 8,
+                pooler_type: str = 'cls',
+                temp: float = 0.05,
+                mlm_weight: float = 0.1,
+                item_num: int = 0,
+                finetune_negative_sample_size: int = 0,
+                **kwargs):
+        super().__init__(pad_token_id=pad_token_id, **kwargs)
+
+
+        self.token_type_size = token_type_size
+        self.max_token_num = max_token_num
+        self.max_item_embeddings = max_item_embeddings
+        self.max_attr_num = max_attr_num
+        self.max_attr_length = max_attr_length
+        self.pooler_type = pooler_type
+        self.temp = temp
+        self.mlm_weight = mlm_weight
+
+        # finetune config
+
+        self.item_num = item_num
+        self.finetune_negative_sample_size = finetune_negative_sample_size
+
 
 @dataclass
 class RecformerPretrainingOutput:
