@@ -8,7 +8,7 @@ from hydra.bert.src.configuration_bert import BertConfig as HydraBertConfig
 # Create BertConfig instance from pretrained model with custom parameters
 hydra_config_params = {
     'num_hidden_layers': 23,
-    'max_position_embeddings': 128,  # Fixed typo: was 'max_position_embedding'
+    'max_position_embeddings': 1024,  # Fixed typo: was 'max_position_embedding'
     'use_position_embeddings': False,
     'hidden_size': 768,
 }
@@ -49,10 +49,11 @@ for name, param in hydra_state_dict.items():
                 print(recformer_state_dict[name].size())
                 print(param.size())
                 if(name == 'bert.embeddings.token_type_embeddings.weight'):
-                    print("!!!FOUND!!!!")
                     hydra_state_dict[name] = param[0, :].unsqueeze(0)
                     param = hydra_state_dict[name]
                     print('after:',param.size())
+                if(name == 'bert.embeddings.position_embeddings.weight'):
+                    continue
             recformer_state_dict[name].copy_(param)
         except:
             print('wrong size', name)
