@@ -7,6 +7,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+*.pt
+*.bin
+result/*
+result/**
+
 # C extensions
 *.so
 

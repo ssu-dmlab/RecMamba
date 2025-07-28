@@ -9,7 +9,8 @@ class BertConfig(TransformersBertConfig):
     def __init__(
         self,
         attention_probs_dropout_prob: float = 0.0,
-        use_position_embeddings: bool = False,
+        ###
+        use_position_embeddings: bool = False, #Recformer에서는 항상 True이므로 필요없었음.
         matrix_mixer_type: str = 'hydra',
         is_prenorm: bool = False,
         d_conv: int = 7,

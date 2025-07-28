@@ -62,8 +62,9 @@ def main():
     config.max_attr_length = 32
     config.max_item_embeddings = 51  # 50 item and 1 for cls
     config.attention_window = [64] * 12
-    config.max_token_num = 1024
+    config.max_token_num = 256
     tokenizer = RecformerTokenizer.from_pretrained(args.model_name_or_path, config)
+    print(f"config.max_position_embeddings: {config.max_position_embeddings}")
 
     global tokenizer_glb
     tokenizer_glb = tokenizer
@@ -71,7 +72,7 @@ def main():
     # preprocess corpus
     path_corpus = Path(args.item_attr_file)
     dir_corpus = path_corpus.parent
-    dir_preprocess = dir_corpus / 'preprocess'
+    dir_preprocess = dir_corpus / 'preprocess(old)'
     dir_preprocess.mkdir(exist_ok=True)
 
     path_tokenized_items = dir_preprocess / f'tokenized_items_{path_corpus.name}'

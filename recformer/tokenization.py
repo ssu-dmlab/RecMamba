@@ -1,5 +1,6 @@
 import torch
 from transformers import LongformerTokenizer, BertTokenizer
+from recformer.models import RecformerConfig, RecmambaConfig
 
 class RecformerTokenizer(LongformerTokenizer):
     @classmethod
@@ -159,7 +160,7 @@ class RecformerTokenizer(LongformerTokenizer):
 
         return self.padding(item_batch, pad_to_max)
         
-class RecMambaTokenizer(BertTokenizer):
+class RecmambaTokenizer(BertTokenizer):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, config=None):
         cls.config = config
@@ -253,8 +254,6 @@ class RecMambaTokenizer(BertTokenizer):
         token_type_ids = token_type_ids[:self.config.max_token_num]
 
         attention_mask = [1] * len(input_ids)
-        #global_attention_mask = [0] * len(input_ids)
-        #global_attention_mask[0] = 1
 
         return {
             "input_ids": input_ids,
@@ -275,7 +274,6 @@ class RecMambaTokenizer(BertTokenizer):
         batch_item_position_ids = []
         batch_token_type_ids = []
         batch_attention_mask = []
-        batch_global_attention_mask = []
 
 
         for items in item_batch:
@@ -284,7 +282,6 @@ class RecMambaTokenizer(BertTokenizer):
             item_position_ids = items["item_position_ids"]
             token_type_ids = items["token_type_ids"]
             attention_mask = items["attention_mask"]
-            #global_attention_mask = items["global_attention_mask"]
 
             length_to_pad = max_length - len(input_ids)
 
@@ -292,13 +289,11 @@ class RecMambaTokenizer(BertTokenizer):
             item_position_ids += [self.config.max_item_embeddings - 1] * length_to_pad
             token_type_ids += [3] * length_to_pad
             attention_mask += [0] * length_to_pad
-            #global_attention_mask += [0] * length_to_pad
 
             batch_input_ids.append(input_ids)
             batch_item_position_ids.append(item_position_ids)
             batch_token_type_ids.append(token_type_ids)
             batch_attention_mask.append(attention_mask)
-            #batch_global_attention_mask.append(global_attention_mask)
 
         return {
             "input_ids": batch_input_ids,
@@ -313,18 +308,16 @@ class RecMambaTokenizer(BertTokenizer):
         item_batch = [self.encode(items, encode_item) for items in item_batch]
 
         return self.padding(item_batch, pad_to_max)
+        
 
 if __name__ == "__main__":
 
-    from models import RecformerConfig
-    from models import RecMambaConfig
+    config = RecmambaConfig.from_pretrained("bert-base-uncased")
+    tokenizer = RecmambaTokenizer.from_pretrained("bert-base-uncased", config=config)
 
 
-    config = RecformerConfig.from_pretrained("allenai/longformer-base-4096")
-    tokenizer = RecformerTokenizer.from_pretrained("allenai/longformer-base-4096", config=config)
-
-    new_config = RecMambaConfig.from_pretrained("google-bert/bert-base-uncased")
-    new_tokenizer = RecMambaTokenizer.from_pretrained("google-bert/bert-base-uncased", config=new_config)
+    # config = RecformerConfig.from_pretrained("allenai/longformer-base-4096")
+    # tokenizer = RecformerTokenizer.from_pretrained("allenai/longformer-base-4096", config=config)
 
     items1 = [{'pt': 'PUZZLES',
             'material': 'Cardboard++Cartón',
@@ -364,31 +357,13 @@ if __name__ == "__main__":
             'paper_size': '6.25 x 8.25 inches++',
             'style': 'Hanging Flowers'}]
 
-    # Check special tokens
-    print("=== RecformerTokenizer Special Tokens ===")
-    special_tokens = tokenizer.special_tokens_map
-    for name, token in special_tokens.items():
-        token_id = tokenizer.convert_tokens_to_ids(token)
-        print(f"{name}: {token_id} ({token})")
-    
-    print("\n=== RecMambaTokenizer Special Tokens ===")
-    special_tokens1 = new_tokenizer.special_tokens_map
-    for name, token in special_tokens1.items():
-        token_id = new_tokenizer.convert_tokens_to_ids(token)
-        print(f"{name}: {token_id} ({token})")
+    inputs = tokenizer(items1)
+    print(inputs)
+    print(tokenizer.convert_ids_to_tokens(inputs['input_ids']))
+    print(len(inputs['input_ids']))
 
-    # Single item sequence tokenization test
-    inputs = new_tokenizer(items1)
-    print("\nSingle sequence tokenization result:")
-    print(f"Tokenized inputs: {inputs}") # BERT general tokens start from token_id 999
+    inputs = tokenizer([items1, items2])
+    print(inputs)
     
-    # Convert token IDs to actual tokens for verification
-    print("\nToken ID -> Token conversion result:")
-    print(new_tokenizer.convert_ids_to_tokens(inputs['input_ids']))
-
-    # Batch tokenization test 
-    inputs = new_tokenizer([items1, items2])
-    print("\nBatch tokenization result:")
-    print(f"Tokenized inputs: {inputs}")
 
         

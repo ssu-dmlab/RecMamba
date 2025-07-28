@@ -1,6 +1,6 @@
 from typing import Optional, Union, List, Dict, Tuple
 from dataclasses import dataclass
-from recformer import RecformerTokenizer
+from recformer import RecformerTokenizer, RecmambaTokenizer
 import torch
 import unicodedata
 import random
@@ -10,7 +10,7 @@ import random
 @dataclass
 class PretrainDataCollatorWithPadding:
 
-    tokenizer: RecformerTokenizer
+    tokenizer: RecmambaTokenizer
     tokenized_items: Dict
     mlm_probability: float
 
@@ -115,7 +115,7 @@ class PretrainDataCollatorWithPadding:
 
         for (i, token) in enumerate(input_tokens):
 
-            if token == self.tokenizer.bos_token or token == self.tokenizer.eos_token:
+            if token == self.tokenizer.cls_token or token == self.tokenizer.sep_token:
                 continue
 
             if self._is_subword(token) and len(cand_indexes) > 0:
@@ -246,7 +246,7 @@ class PretrainDataCollatorWithPadding:
 @dataclass
 class FinetuneDataCollatorWithPadding:
 
-    tokenizer: RecformerTokenizer
+    tokenizer: RecmambaTokenizer
     tokenized_items: Dict
 
     def __call__(self, batch_item_ids: List[Dict[str, Union[List[int], List[List[int]], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
