@@ -25,7 +25,21 @@ class LitWrapper(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         outputs = self(**batch)
-        return outputs.loss
+        loss = outputs.loss
+        
+        # Calculate accuracy from contrastive learning metrics
+        correct_num = outputs.cl_correct_num
+        total_num = outputs.cl_total_num
+        accuracy = 0.0
+        if total_num > 0:
+            accuracy = correct_num / total_num
+        
+        self.log_dict({
+            'train_loss': loss,
+            'train_accuracy': accuracy
+        }, on_step=True, on_epoch=True, prog_bar=True)
+        
+        return loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self(**batch)
@@ -38,6 +52,8 @@ class LitWrapper(pl.LightningModule):
             accuracy = correct_num / total_num
 
         self.log_dict({'val_loss': loss, 'accuracy': accuracy}, on_epoch=True, prog_bar=True)
+        
+        return {'val_loss': loss, 'accuracy': accuracy}
 
     def configure_optimizers(self):
         model = self.model

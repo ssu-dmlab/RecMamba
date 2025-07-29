@@ -1,4 +1,4 @@
-from torch.utils.tensorboard import SummaryWriter
+from lightning.pytorch.loggers import WandbLogger
 import logging
 from torch.utils.data import DataLoader
 from multiprocessing import Pool
@@ -9,7 +9,7 @@ import argparse
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-
+import wandb
 from recformer import RecformerForPretraining, RecformerTokenizer, RecformerConfig, LitWrapper
 from collator import PretrainDataCollatorWithPadding
 from lightning_dataloader import ClickDataset
@@ -31,8 +31,8 @@ parser.add_argument('--dataloader_num_workers', type=int, default=2)
 parser.add_argument('--mlm_probability', type=float, default=0.15)
 parser.add_argument('--batch_size', type=int, default=2)
 parser.add_argument('--learning_rate', type=float, default=5e-5)
-parser.add_argument('--valid_step', type=int, default=2000)
-parser.add_argument('--log_step', type=int, default=2000)
+parser.add_argument('--valid_step', type=int, default=10000)
+parser.add_argument('--log_step', type=int, default=200)
 parser.add_argument('--device', type=int, default=1)
 parser.add_argument('--fp16', action='store_true')
 parser.add_argument('--ckpt', type=str, default=None)
@@ -55,9 +55,11 @@ def main():
     
     args = parser.parse_args()
     print(args)
+    wandb.login()
+    wandb_logger = WandbLogger(project="Recmamba", name=f"recformer_{args.model_name_or_path}")
     seed_everything(42)
 
-    config = RecformerConfig.from_pretrained(args.model_name_or_path)
+    config = RecformerConfig.from_pretrained(args.model_name_or_path)   
     config.max_attr_num = 3
     config.max_attr_length = 32
     config.max_item_embeddings = 51  # 50 item and 1 for cls
@@ -129,7 +131,8 @@ def main():
                      log_every_n_steps=args.log_step,
                      precision=16 if args.fp16 else 32,
                      strategy='deepspeed_stage_2',
-                     callbacks=[checkpoint_callback]
+                     callbacks=[checkpoint_callback],
+                     logger=wandb_logger,
                      )
 
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=dev_loader, ckpt_path=args.ckpt)

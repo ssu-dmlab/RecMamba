@@ -1,4 +1,5 @@
-from torch.utils.tensorboard import SummaryWriter
+from lightning.pytorch.loggers import WandbLogger
+#from torch.utils.tensorboard import SummaryWriter
 import logging
 from torch.utils.data import DataLoader
 from multiprocessing import Pool
@@ -12,9 +13,9 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from recformer import RecmambaForPretraining, RecmambaConfig, LitWrapper
 from recformer.tokenization import RecmambaTokenizer
-from collator import PretrainDataCollatorWithPadding
+from collator import PretrainDataCollatorWithPadding_mamba
 from lightning_dataloader import ClickDataset
-
+import wandb
 logger = logging.getLogger(__name__)
 
 
@@ -32,8 +33,8 @@ parser.add_argument('--dataloader_num_workers', type=int, default=2)
 parser.add_argument('--mlm_probability', type=float, default=0.15)
 parser.add_argument('--batch_size', type=int, default=2)
 parser.add_argument('--learning_rate', type=float, default=5e-5)
-parser.add_argument('--valid_step', type=int, default=2000)
-parser.add_argument('--log_step', type=int, default=2000)
+parser.add_argument('--valid_step', type=int, default=10000)
+parser.add_argument('--log_step', type=int, default=200)
 parser.add_argument('--device', type=int, default=1)
 parser.add_argument('--fp16', action='store_true')
 parser.add_argument('--ckpt', type=str, default=None)
@@ -56,10 +57,13 @@ def main():
     
     args = parser.parse_args()
     print(args)
+    wandb.login()
+    wandb_logger = WandbLogger(project="Recmamba", name=f"recmamba_{args.model_name_or_path}")
+    
     seed_everything(42)
     hydra_config_params = {
     'num_hidden_layers': 23,
-    'max_position_embeddings': 128,  # Fixed typo: was 'max_position_embedding'
+    'max_position_embeddings': 1024,  # Match max_token_num to avoid position embedding overflow
     'use_position_embeddings': True,
     'hidden_size': 768,
     }
@@ -68,7 +72,7 @@ def main():
     config.max_attr_length = 32
     config.max_item_embeddings = 51  # 50 item and 1 for cls
     config.attention_window = [64] * 12
-    config.max_token_num = 1024
+    config.max_token_num = 1023
     config.vocab_size += 8 - (config.vocab_size % 8)
     tokenizer = RecmambaTokenizer.from_pretrained(args.model_name_or_path, config)
 
@@ -100,7 +104,7 @@ def main():
     tokenized_items = json.load(open(path_tokenized_items))#dir_preprocess / f'attr_small.json'))#
     print(f'Successfully load {len(tokenized_items)} tokenized items.')
 
-    data_collator = PretrainDataCollatorWithPadding(tokenizer, tokenized_items, mlm_probability=args.mlm_probability)
+    data_collator = PretrainDataCollatorWithPadding_mamba(tokenizer, tokenized_items, mlm_probability=args.mlm_probability)
     train_data = ClickDataset(json.load(open(args.train_file)), data_collator)
     dev_data = ClickDataset(json.load(open(args.dev_file)), data_collator)
 
@@ -136,7 +140,8 @@ def main():
                      log_every_n_steps=args.log_step,
                      precision=16 if args.fp16 else 32,
                      strategy='deepspeed_stage_2',
-                     callbacks=[checkpoint_callback]
+                     callbacks=[checkpoint_callback],
+                     logger=wandb_logger,
                      )
 
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=dev_loader, ckpt_path=args.ckpt)
