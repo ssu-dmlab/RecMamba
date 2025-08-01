@@ -791,6 +791,7 @@ class RecmambaModel(BertPreTrainedModel):
         inputs_embeds: Optional[torch.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        masked_tokens_mask: Optional[torch.Tensor] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutputWithPooling]:
 
@@ -820,15 +821,15 @@ class RecmambaModel(BertPreTrainedModel):
         #if global_attention_mask is not None:
        #     attention_mask = self._merge_to_attention_mask(attention_mask, global_attention_mask)
 
-        padding_len, input_ids, attention_mask, token_type_ids, position_ids, item_position_ids, inputs_embeds = self._pad_to_window_size(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            item_position_ids=item_position_ids,
-            inputs_embeds=inputs_embeds,
-            pad_token_id=self.config.pad_token_id,
-        )
+        # padding_len, input_ids, attention_mask, token_type_ids, position_ids, item_position_ids, inputs_embeds = self._pad_to_window_size(
+        #     input_ids=input_ids,
+        #     attention_mask=attention_mask,
+        #     token_type_ids=token_type_ids,
+        #     position_ids=position_ids,
+        #     item_position_ids=item_position_ids,
+        #     inputs_embeds=inputs_embeds,
+        #     pad_token_id=self.config.pad_token_id,
+        # )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -840,26 +841,56 @@ class RecmambaModel(BertPreTrainedModel):
             input_ids=input_ids, position_ids=position_ids, item_position_ids=item_position_ids, token_type_ids=token_type_ids, inputs_embeds=inputs_embeds
         )
 
+        subset_mask = []
+        first_col_mask = []
+
+        if masked_tokens_mask is None:
+            subset_mask = None
+        else:
+            first_col_mask = torch.zeros_like(masked_tokens_mask)
+            first_col_mask[:, 0] = True
+            subset_mask = masked_tokens_mask | first_col_mask
+
         encoder_outputs = self.encoder(
             embedding_output,
-            attention_mask=extended_attention_mask,
-            head_mask=head_mask,
-            padding_len=padding_len,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
-        sequence_output = encoder_outputs[0]
-        pooled_output = self.pooler(attention_mask, sequence_output) if self.pooler is not None else None
+            attention_mask,
+            output_all_encoded_layers=output_hidden_states if output_hidden_states is not None else False,
+            subset_mask=subset_mask)
+
+
+        all_hidden_states = None
+        # Hydra BertEncoder returns List[torch.Tensor]
+        if masked_tokens_mask is None:
+            if isinstance(encoder_outputs, list):
+                #here
+                sequence_output = encoder_outputs[-1]  # Last layer output
+                all_hidden_states = tuple(encoder_outputs) if output_hidden_states else None
+            else:
+                sequence_output = encoder_outputs
+            pooled_output = self.pooler(attention_mask, sequence_output) if self.pooler is not None else None
+        else:
+            attention_mask_bool = attention_mask.bool()
+            subset_idx = subset_mask[attention_mask_bool]  # type: ignore
+            sequence_output = encoder_outputs[-1][
+                masked_tokens_mask[attention_mask_bool][subset_idx]]
+            if self.pooler is not None:
+                pooled_output = self.pooler(attention_mask, sequence_output)
+            else:
+                pooled_output = None
+            
+        
 
         if not return_dict:
-            return (sequence_output, pooled_output) + encoder_outputs[1:]
+            outputs = (sequence_output, pooled_output)
+            if all_hidden_states is not None:
+                outputs = outputs + (all_hidden_states,)
+            return outputs
 
         return BaseModelOutputWithPooling(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
+            hidden_states=all_hidden_states,
+            attentions=None,  # Hydra BertEncoder doesn't provide attention weights
         )
     
 class RecmambaForPretraining(BertPreTrainedModel):
@@ -895,11 +926,13 @@ class RecmambaForPretraining(BertPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        **kwargs  # To handle unused arguments like global_attention_mask_a, global_attention_mask_b
     ):
         
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         batch_size = input_ids_a.size(0)
+        
 
         outputs_a = self.bert(
             input_ids_a,
@@ -913,6 +946,7 @@ class RecmambaForPretraining(BertPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=True,
+            masked_tokens_mask=None,
         )
         outputs_b = self.bert(
             input_ids_b,
@@ -926,9 +960,16 @@ class RecmambaForPretraining(BertPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=True,
+            masked_tokens_mask=None,
         )
 
         # MLM auxiliary objective
+        
+        # masked_tokens_mask_a = mlm_labels_a > 0
+        # masked_tokens_mask_b = mlm_labels_b > 0
+        masked_tokens_mask_a = None
+        masked_tokens_mask_b = None
+
         mlm_outputs_a = None
         if mlm_input_ids_a is not None:
             mlm_outputs_a = self.bert(
@@ -944,6 +985,7 @@ class RecmambaForPretraining(BertPreTrainedModel):
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
                 return_dict=True,
+                masked_tokens_mask=masked_tokens_mask_a,
             )
 
         mlm_outputs_b = None
@@ -960,6 +1002,7 @@ class RecmambaForPretraining(BertPreTrainedModel):
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
                 return_dict=True,
+                masked_tokens_mask=masked_tokens_mask_b,
             )
 
         z1 = outputs_a.pooler_output  # (bs*num_sent, hidden_size)
@@ -992,15 +1035,19 @@ class RecmambaForPretraining(BertPreTrainedModel):
 
         if mlm_outputs_a is not None and mlm_labels_a is not None:
             mlm_labels_a = mlm_labels_a.view(-1, mlm_labels_a.size(-1))
+            #masked_token_idx_a = torch.nonzero(mlm_labels_a.flatten() > 0, as_tuple=False).flatten()
             prediction_scores_a = self.cls(mlm_outputs_a.last_hidden_state)
             masked_lm_loss_a = loss_fct(prediction_scores_a.view(-1, self.config.vocab_size), mlm_labels_a.view(-1))
+            # masked_lm_loss_a = loss_fct(prediction_scores_a.view(-1, self.config.vocab_size), mlm_labels_a.view(-1)[masked_token_idx_a])
             loss = loss + self.config.mlm_weight * masked_lm_loss_a
 
         
         if mlm_outputs_b is not None and mlm_labels_b is not None:
             mlm_labels_b = mlm_labels_b.view(-1, mlm_labels_b.size(-1))
+            #masked_token_idx_b = torch.nonzero(mlm_labels_b.flatten() > 0, as_tuple=False).flatten()
             prediction_scores_b = self.cls(mlm_outputs_b.last_hidden_state)
             masked_lm_loss_b = loss_fct(prediction_scores_b.view(-1, self.config.vocab_size), mlm_labels_b.view(-1))
+            # masked_lm_loss_b = loss_fct(prediction_scores_b.view(-1, self.config.vocab_size), mlm_labels_b.view(-1)[masked_token_idx_b])
             loss = loss + self.config.mlm_weight * masked_lm_loss_b
 
         return RecmambaPretrainingOutput(

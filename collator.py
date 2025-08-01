@@ -1,6 +1,6 @@
 from typing import Optional, Union, List, Dict, Tuple
 from dataclasses import dataclass
-from recformer import RecformerTokenizer
+from recformer import RecformerTokenizer, RecmambaTokenizer
 import torch
 import unicodedata
 import random
@@ -242,11 +242,18 @@ class PretrainDataCollatorWithPadding:
                 result[i, -example.shape[0] :] = example
         return result
 
+@dataclass
+class PretrainDataCollatorWithPadding_mamba(PretrainDataCollatorWithPadding):
+    
+    tokenizer: RecmambaTokenizer
+    tokenized_items: Dict
+    mlm_probability: float
+    
 
 @dataclass
 class FinetuneDataCollatorWithPadding:
 
-    tokenizer: RecformerTokenizer
+    tokenizer: RecmambaTokenizer
     tokenized_items: Dict
 
     def __call__(self, batch_item_ids: List[Dict[str, Union[List[int], List[List[int]], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
@@ -317,7 +324,7 @@ class FinetuneDataCollatorWithPadding:
 @dataclass
 class EvalDataCollatorWithPadding:
 
-    tokenizer: RecformerTokenizer
+    tokenizer: RecmambaTokenizer
     tokenized_items: Dict
 
     def __call__(self, batch_data: List[Dict[str, Union[int, List[int], List[List[int]], torch.Tensor]]]) -> Dict[str, torch.Tensor]:

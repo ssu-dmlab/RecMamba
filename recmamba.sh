@@ -1,5 +1,12 @@
+#!/bin/bash
+#SBATCH --gpus=1
+#SBATCH --cpus-per-gpu=8
+#SBATCH --chdir=.
+
 # Use distributed data parallel
-#CUDA_VISIBLE_DEVICES=1
+#CUDA_VISIBLE_DEVICES=2,4
+
+
 python lightning_pre_mamba.py \
     --model_name_or_path bert-base-uncased \
     --train_file pretrain_data/train.json \
@@ -10,7 +17,7 @@ python lightning_pre_mamba.py \
     --gradient_accumulation_steps 8 \
     --preprocessing_num_workers 8 \
     --dataloader_num_workers 8  \
-    --batch_size 16\
+    --batch_size 8 \
     --learning_rate 5e-5 \
     --temp 0.05 \
     --device 1 \

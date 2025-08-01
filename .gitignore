@@ -6,12 +6,15 @@ __pycache__/*
 __pycache__/
 *.py[cod]
 *$py.class
-
+slurm*.out
 *.pt
 *.bin
 result/*
 result/**
-
+wandb/
+wandb/**
+Recmamba/
+Recmamba/**
 # C extensions
 *.so
 
